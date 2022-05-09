@@ -10,6 +10,49 @@ from calendar import c
 from xml.dom import minidom
 
 # parse an xml file by name
+# def findOnRecieveSSL():
+def checkSSLSecurityCheckInWebview(sample):
+	writePassResults(filename," <b><h3 style='text-align:center'>SSL Implementation for Webview Check</h3></b> </br> ")
+	if len(sample)==0:
+		return
+	ff=0	
+	for j in range(len(sample)):
+		if ff==1:
+			break	
+		temp = sample[j].split(".")
+		flag = 0
+		path = pwd+"/sources/"
+		# print("sample----",sample)
+		for i in range(len(temp)-1):
+			path+=temp[i]
+			path+="/"
+		print("path-----",path)
+		files = []
+		try:	
+			files = os.listdir(path)
+			ff=1
+		except:
+			pass	
+		for i in files:
+			file = path+i 
+			if os.path.isfile(file):
+				with open(file,errors='ignore') as f:
+					f2 = f.read()
+					onReceivedSSlError =  [_.start() for _ in re.finditer('onReceivedSslError',f2)]
+					if(len(onReceivedSSlError))>0:
+						proceed =  [_.start() for _ in re.finditer('.proceed()',f2)]
+						if len(proceed)>0:
+							writeResults(filename,"<ul> <li> <p style=\"color:red;\"><b>[Vulnerability]</b> --- <b>SSL Security Vulnerable Found</b> DO NOT use 'handler.proceed();' inside those methods in extended 'WebViewClient', which allows the connection even if the SSL Certificate is invalid (MITM Vulnerability). </p> </li> </ul>")
+							flag=1
+							print("HEREEE I AMMMM")
+							writeResults(filename,"<hr style='border-top: dotted 3px' />")
+							break 
+	print("FLAG__",flag)
+	if flag==0:
+		writePassResults(filename,"<ul> <li> <p style=\"color:green;\"> <span style='border: 9px solid white'><b>[Info]</b> ---  </span> SSL Implementation for WebViewClient or WebView found good, Did not detect critical usage of WebViewClient (MITM Vulnerability). </p> </li> </ul>")
+		writePassResults(filename,"<hr style='border-top: dotted 3px' />")
+
+
 
 webview_f = [0]
 def isUniversalAccessFromFileUrlEnabled(exported_components):
@@ -18,20 +61,21 @@ def isUniversalAccessFromFileUrlEnabled(exported_components):
 	for i in exported_components:
 		i = i.replace(".","/")
 		filepath = pwd+"/sources/"+i+".java"
-		with open(filepath,errors='ignore') as f:
-			f2 = f.read()
-			setAllowUniversalAccessFromFileURLs_enabled =  [_.start() for _ in re.finditer('setAllowUniversalAccessFromFileURLs',f2)]
-			
-			if len(setAllowUniversalAccessFromFileURLs_enabled)>0:
-				start_ind = setAllowUniversalAccessFromFileURLs_enabled[-1]
-				if f2[start_ind+36:start_ind+40]=="true":
-					writeResults(filename,"<ul> <li> <p style=\"color:red;\"><b>[Warning]</b> ---  Found 'setAllowFileAccess(true)' or not set(enabled by default) in WebView. The attackers could inject malicious script into WebView and exploit the opportunity to access local resources. This can be mitigated or prevented by disabling local file system access. (It is enabled by default) Note that this enables or disables file system access only. Assets and resources are still accessible using file:///android_asset and file:///android_res. The attackers can use WebView.loadUrl('file:///data/data/[Your_Package_Name]/[File]'); to access app's local file.</p> </li> </ul>" )
-					flag=1
-					break
-				else:
-					pass
+		if os.path.isfile(filepath):
+			with open(filepath,errors='ignore') as f:
+				f2 = f.read()
+				setAllowUniversalAccessFromFileURLs_enabled =  [_.start() for _ in re.finditer('setAllowUniversalAccessFromFileURLs',f2)]
+				
+				if len(setAllowUniversalAccessFromFileURLs_enabled)>0:
+					start_ind = setAllowUniversalAccessFromFileURLs_enabled[-1]
+					if f2[start_ind+36:start_ind+40]=="true":
+						writeResults(filename,"<ul> <li> <p style=\"color:red;\"><b>[Warning]</b> ---  Found 'setAllowFileAccess(true)' or not set(enabled by default) in WebView. The attackers could inject malicious script into WebView and exploit the opportunity to access local resources. This can be mitigated or prevented by disabling local file system access. (It is enabled by default) Note that this enables or disables file system access only. Assets and resources are still accessible using file:///android_asset and file:///android_res. The attackers can use WebView.loadUrl('file:///data/data/[Your_Package_Name]/[File]'); to access app's local file.</p> </li> </ul>" )
+						flag=1
+						break
+					else:
+						pass
 	if flag==0:
-		writePassResults(filename,"<ul> <li> <p style=\"color:green;\"> <span style='border: 9px solid white'><b>[Info]</b> --- None of the component have setUniversalAccessFromFileUrlEnabled set as True </span> </p> </li> </ul>")
+		writePassResults(filename,"<ul> <li> <p style=\"color:green;\"> <span style='border: 9px solid white'><b>[Info]</b> --- </span> None of the component have setUniversalAccessFromFileUrlEnabled set as True  </p> </li> </ul>")
 		writePassResults(filename,"<hr style='border-top: dotted 3px' />")
 	else:	
 
@@ -40,25 +84,29 @@ def isUniversalAccessFromFileUrlEnabled(exported_components):
 		else:
 			writePassResults(filename,"<ul> <li> <p style=\"color:green;\"><b>[Info]</b> None of the component have 'setAllowFileAccess' configuration as eneabled </p> </li> </ul>")	
 		writeResults(filename,"<hr style='border-top: dotted 3px' />")
-		
+		writePassResults(filename,"<hr style='border-top: dotted 3px' />")
 def isJavaScriptInterface(exported_components):
 	
 	flag=0
+	print("EXPORTED COMPO********",exported_components)
 	for i in exported_components:
 		i = i.replace(".","/")
 		filepath = pwd+"/sources/"+i+".java"
-		with open(filepath,errors='ignore') as f:
-			f2 = f.read()
-			setAllowUniversalAccessFromFileURLs_enabled =  [_.start() for _ in re.finditer('addJavascriptInterface',f2)]
-			
-			if len(setAllowUniversalAccessFromFileURLs_enabled)>0:
-				writeResults(filename,"<ul> <li> <p style=\"color:red;\"><b>[Vulnerability]</b> ---  <Remote Code Execution><#CVE-2013-4710#> WebView RCE Vulnerability Checking: Found a critical WebView 'addJavascriptInterface' vulnerability. This method can be used to allow JavaScript to control the host application. This is a powerful feature, but also presents a security risk for applications targeted to API level JELLY_BEAN(4.2) or below, because JavaScript could use reflection to access an injected object's public fields. Use of this method in a WebView containing untrusted content could allow an attacker to manipulate the host application in unintended ways, executing Java code with the permissions of the host application. </p> </li> </ul>")
-				flag=1
-				# 	break
-				# else:
-				# 	pass
+
+		print(filepath)
+		if os.path.isfile(filepath):
+			with open(filepath,errors='ignore') as f:
+				f2 = f.read()
+				setAllowUniversalAccessFromFileURLs_enabled =  [_.start() for _ in re.finditer('addJavascriptInterface',f2)]
+				
+				if len(setAllowUniversalAccessFromFileURLs_enabled)>0:
+					writeResults(filename,"<ul> <li> <p style=\"color:red;\"><b>[Vulnerability]</b> ---  <Remote Code Execution><#CVE-2013-4710#> WebView RCE Vulnerability Checking: Found a critical WebView 'addJavascriptInterface' vulnerability. This method can be used to allow JavaScript to control the host application. This is a powerful feature, but also presents a security risk for applications targeted to API level JELLY_BEAN(4.2) or below, because JavaScript could use reflection to access an injected object's public fields. Use of this method in a WebView containing untrusted content could allow an attacker to manipulate the host application in unintended ways, executing Java code with the permissions of the host application. </p> </li> </ul>")
+					flag=1
+					break
+					# else:
+					# 	pass
 	if flag==0:
-		writePassResults(filename,"<ul> <li> <p style=\"color:green;\"><span style='border: 9px solid white'><b>[Info]</b> --- Application is secure from java to javascript Interface vulnerability </span> </p> </li> </ul>")
+		writePassResults(filename,"<ul> <li> <p style=\"color:green;\"><span style='border: 9px solid white'><b>[Info]</b> --- </span>Application is secure from java to javascript Interface vulnerability  </p> </li> </ul>")
 	else:
 		webview_f[0] +=1
 
@@ -68,18 +116,19 @@ def isJavascriptEnabled(exported_components):
 	for i in exported_components:
 		i = i.replace(".","/")
 		filepath = pwd+"/sources/"+i+".java"
-		with open(filepath,errors='ignore') as f:
-			f2 = f.read()
-			java_script_enabled = [_.start() for _ in re.finditer('setJavaScriptEnabled',f2)]
+		if os.path.isfile(filepath):
+			with open(filepath,errors='ignore') as f:
+				f2 = f.read()
+				java_script_enabled = [_.start() for _ in re.finditer('setJavaScriptEnabled',f2)]
 
-			if len(java_script_enabled)>0:
-				start_ind = java_script_enabled[-1]
-				if f2[start_ind+21:start_ind+25]=="true":
-					flag=1
-					writeResults(filename,"<ul> <li> <p style=\"color:red;\"><b>[Warning]</b> --- <b> Found 'setJavaScriptEnabled(true)' in WebView </b>, which could exposed to potential XSS attacks. </p> </li> </ul>" )
-					break
-				else:
-					pass
+				if len(java_script_enabled)>0:
+					start_ind = java_script_enabled[-1]
+					if f2[start_ind+21:start_ind+25]=="true":
+						flag=1
+						writeResults(filename,"<ul> <li> <p style=\"color:red;\"><b>[Warning]</b> --- <b> Found 'setJavaScriptEnabled(true)' in WebView </b>, which could exposed to potential XSS attacks. </p> </li> </ul>" )
+						break
+					else:
+						pass
 	if flag==0:
 		writePassResults(filename,"<ul> <li> <p style=\"color:green;\"><b>[Info]</b> --- None of the exported acitivity have javaScriptEnabled set as True </p> </li> </ul>")
 	else:
@@ -103,9 +152,8 @@ def find_exported_component():
 			writePassResults(filename,"<ul> <li> <p style=\"color:orange;\"><b>[Info]</b> --- Exported Activities:" + activities[i].attributes['android:name'].value +"</p> </li> </ul>")
 			exported_class.append(activities[i].attributes['android:name'].value)
 		except:
-			print("Not a exported component ",activities[i].attributes['android:name'].value)
-		finally:
-			print("----------------")  
+			pass
+		
 		all_class.append(activities[i].attributes['android:name'].value)	
 	for i in range(len(services)):
 		try:
@@ -114,9 +162,8 @@ def find_exported_component():
 			writePassResults(filename,"<ul> <li> <p style=\"color:orange;\"><b>[Info]</b> --- Exported Services:" + services[i].attributes['android:name'].value +"</p> </li> </ul>")
 			exported_class.append(services[i].attributes['android:name'].value)
 		except:
-			print("Not a exported component ",services[i].attributes['android:name'].value)
-		finally:
-			print("----------------")  
+			pass
+		
 		all_class.append(services[i].attributes['android:name'].value)	
 	for i in range(len(receiver)):
 		try:
@@ -126,8 +173,7 @@ def find_exported_component():
 			exported_class.append(receiver[i].attributes['android:name'].value)
 		except:
 			print("Not a exported component ",receiver[i].attributes['android:name'].value)
-		finally:
-			print("----------------")  	
+		
 		all_class.append(receiver[i].attributes['android:name'].value)					
 
 	writePassResults(filename,"<hr style='border-top: dotted 3px' />")		
@@ -135,6 +181,7 @@ def find_exported_component():
 	isJavaScriptInterface(all_class)  
 	isJavascriptEnabled(all_class)
 	isUniversalAccessFromFileUrlEnabled(all_class)
+	checkSSLSecurityCheckInWebview(all_class)
 	print(exported_class)
 
 # Usage python lime.py <apkfile>
